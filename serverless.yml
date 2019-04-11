@@ -1,0 +1,178 @@
+service: ledger-api
+
+plugins:
+  - serverless-offline
+  - serverless-dynamodb-local
+
+custom:
+  dynamodb:
+    start:
+      port: 8090
+      inMemory: true
+      migrate: true
+    migration:
+      dir: offline/migrations
+
+provider:
+  name: aws
+  region: us-east-2
+  runtime: nodejs8.10
+  environment: 
+    DYNAMODB_LEDGER_TABLE: { "Ref": "DynamoDBLedgersTable" }
+    DYNAMODB_TRANSACTION_TABLE: { "Ref": "DynamoDBTransactionsTable" }
+    DYNAMODB_API_TOKEN_TABLE: { "Ref": "DynamoDBAPITokenTable" }
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["DynamoDBLedgersTable", "Arn"] }
+        - { "Fn::GetAtt": ["DynamoDBTransactionsTable", "Arn"] }
+        - { "Fn::GetAtt": ["DynamoDBAPITokenTable", "Arn"] }
+
+#https://stackoverflow.com/questions/46394171/how-do-i-define-resources-for-iamrolestatements-for-multiple-dynamodb-tables-in
+
+#https://gist.github.com/DavidWells/c7df5df9c3e5039ee8c7c888aece2dd5
+
+functions:
+  createLedger:
+    handler: ledgers/create.create
+    events:
+      - http:
+          path: ledgers
+          method: POST
+          cors: true
+
+  listLedgers:
+    handler: ledgers/list.list
+    events:
+      - http:
+          path: ledgers
+          method: GET
+          cors: true
+
+  getLedger:
+    handler: ledgers/get.get
+    events:
+      - http:
+          path: ledgers/{id}
+          method: GET
+          cors: true
+
+  deleteLedger:
+    handler: ledgers/delete.delete
+    events:
+      - https:
+          path: ledgers/{id}
+          method: DELETE
+          cors: true
+
+  createToken:
+    handler: api_tokens/create.create
+    events:
+      - http:
+          path: tokens
+          method: POST
+          cors: true
+
+  listTokens:
+    handler: api_tokens/list.list
+    events:
+      - http:
+          path: tokens
+          method: GET
+          cors: true
+
+  getToken:
+    handler: api_tokens/get.get
+    events:
+      - http:
+          path: tokens/{id}
+          method: GET
+          cors: true
+
+  deleteToken:
+    handler: api_tokens/delete.delete
+    events:
+      - https:
+          path: tokens/{id}
+          method: DELETE
+          cors: true
+
+# Todo: Evaluate performance gains for Binary instead of String for HASH
+
+resources:
+  Resources:
+    DynamoDBLedgersTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: ledger_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: ledger_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+    DynamoDBTransactionsTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: ledger_id
+            AttributeType: S
+          -
+            AttributeName: txn
+            AttributeType: S
+          -
+            AttributeName: txn_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: ledger_id
+            KeyType: HASH
+          -
+            AttributeName: txn
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - 
+            IndexName: txn_id-index
+            KeySchema:
+              -
+                AttributeName: txn_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+
+    DynamoDBAPITokenTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: token_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: token_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1

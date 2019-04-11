@@ -1,0 +1,8 @@
+admin.env
+.env
+_meta
+.serverless
+node_modules
+build/Release
+logs
+.DS_Store

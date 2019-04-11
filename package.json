@@ -1,0 +1,15 @@
+{
+  "name": "ledger-api",
+  "version": "0.0.1",
+  "description": "API portion of the Continuous Auditing Ledger infrastructure",
+  "author": "Allan Bruford",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.413.0",
+    "serverless-dynamodb-local": "^0.2.30",
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "serverless-offline": "^4.2.1"
+  }
+}
